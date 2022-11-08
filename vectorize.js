@@ -1,9 +1,19 @@
-var fileInput = document.querySelector("#file")
-let canvas
-let ctx
-let imgFile
-let imgData
-let imageArray = []
+let map_file_name = "big_map.png"
+vectorize(map_file_name)
+
+// class Vectorize {
+//     constructor() {
+//         this.canvas
+//         this.ctx
+//         this.imgFile
+//     }
+// }
+
+function loadImage(url) {
+    let img = new Image()
+    img.src = url
+    document.body.appendChild(img)
+}
 
 function reShape(array, rows, cols) {
     var copy = array.slice(0) // Copy all elements.
@@ -19,7 +29,7 @@ function reShape(array, rows, cols) {
         }
         array.push(row)
     }
-    return array
+    return transpose(array)
 }
 
 function transpose(matrix) {
@@ -74,47 +84,36 @@ function setPixels(array) {
     return oa
 }
 
-// listen for file input
-fileInput.addEventListener("change", e => {
-    // create dummy image object
-    imgFile = new Image()
-    imgFile.src = URL.createObjectURL(e.target.files[0])
+function vectorize(url) {
+    "use strict"
+    let imgFile = new Image()
+    imgFile.src = url
 
-    // create canvas to draw to
-    canvas = document.createElement("canvas")
-    // document.body.appendChild(canvas)
+    let canvas = document.createElement("canvas")
 
     imgFile.onload = () => {
-        // set the canvas dims to the image dims
         canvas.height = imgFile.height
         canvas.width = imgFile.width
-        ctx = canvas.getContext("2d")
+        let ctx = canvas.getContext("2d")
 
-        // draw the image to the canvas
         ctx.drawImage(imgFile, 0, 0)
 
-        // extract the rgba values for each pixel
-        imgData = ctx.getImageData(0, 0, imgFile.width, imgFile.height).data
+        let imgData = ctx.getImageData(0, 0, imgFile.width, imgFile.height).data
 
         let sorted = sortPixels(imgData)
         let colorMap = setPixels(sorted)
-        imageArray = reShape(colorMap, imgFile.height, imgFile.width)
+        let imageArray = reShape(colorMap, imgFile.height, imgFile.width)
 
-        let scale = 50
+        let scale = 1
 
         let zcanv = document.createElement("canvas")
         let ztx = zcanv.getContext("2d")
-        zcanv.height = imageArray.length * scale
-        zcanv.width = imageArray[0].length * scale
+        zcanv.height = imageArray[0].length * scale
+        zcanv.width = imageArray.length * scale
 
         document.body.appendChild(zcanv)
 
-        drawArray(
-            ztx,
-            transpose(imageArray),
-            scale,
-            (colors = { fg: "rebeccapurple", bg: "green" })
-        )
+        drawArray(ztx, imageArray, scale, { fg: "rebeccapurple", bg: "green" })
         console.table(imageArray)
     }
-})
+}
