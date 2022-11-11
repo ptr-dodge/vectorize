@@ -1,112 +1,140 @@
-export default class Vectorize {
-    constructor(url) {
-        this.url = url
+export default function Vectorize(url, options = { draw: false, scale: 1 }) {
+    let img = new Image()
+    img.src = url
 
-        let imgFile = new Image()
-        imgFile.src = this.url
+    let imageArray = []
+    let imgData
+    let sorted
+    let colorMap
 
+    img.addEventListener("load", () => {
         let canvas = document.createElement("canvas")
+        let ctx = canvas.getContext("2d")
 
-        imgFile.onload = () => {
-            canvas.height = imgFile.height
-            canvas.width = imgFile.width
-            let ctx = canvas.getContext("2d")
+        canvas.height = img.height
+        canvas.width = img.width
 
-            ctx.drawImage(imgFile, 0, 0)
+        ctx.drawImage(img, 0, 0)
 
-            let imgData = ctx.getImageData(
-                0,
-                0,
-                imgFile.width,
-                imgFile.height
-            ).data
+        imgData = getImageData(ctx, img)
+        sorted = sortPixels(imgData)
+        colorMap = setPixels(sorted)
+        imageArray = reShape(colorMap, img.height, img.width)
 
-            let sorted = this.sortPixels(imgData)
-            let colorMap = this.setPixels(sorted)
-            let imageArray = this.reShape(
-                colorMap,
-                imgFile.height,
-                imgFile.width
-            )
-
-            let scale = 1
-
+        if (options.draw) {
             let zcanv = document.createElement("canvas")
             let ztx = zcanv.getContext("2d")
-            zcanv.height = imageArray[0].length * scale
-            zcanv.width = imageArray.length * scale
+            zcanv.height = imageArray[0].length * options.scale
+            zcanv.width = imageArray.length * options.scale
 
             document.body.appendChild(zcanv)
 
-            this.drawArray(ztx, imageArray, scale, {
-                fg: "rebeccapurple",
-                bg: "green"
-            })
+            drawArray(ztx, imageArray, options.scale)
+        }
+    })
+    return imageArray
+}
+
+function getImageData(ctx, img) {
+    return ctx.getImageData(0, 0, img.width, img.height).data
+}
+
+function sortPixels(array) {
+    // TODO: add handler for transparent pixels (r=0, g=0, b=0, a=0)
+
+    let out = [] // our temporary array for sorting
+
+    // read image data
+    for (let i = 0; i < array.length; i++) {
+        /* we only want the rgba values 255 and 0,
+         * a white pixel is r=255, g=255, b=255, a=255
+         * a black pixel is r=0, g=0, b=0, a=255 */
+        if (array[i] == 255) {
+            out.push(255)
+        } else if (array[i] == 0) {
+            out.push(0)
+        } else {
+            console.error("⚠️ Please provide a black and white image")
+            // here we use break so we dont get the same error for each colored pixel
+            break
         }
     }
+    return out
+}
 
-    reShape(array, rows, cols) {
-        var copy = array.slice(0) // Copy all elements.
-        array.length = 0 // Clear out existing array.
+function setPixels(array) {
+    let a = []
+    // for each pixel, check if its black or white, put into new array
+    for (let n = 0; n < array.length; n += 4) {
+        // shorthand if statement: if white pixel, push 1, if black, push 0
+        array[n] == 255 ? a.push(1) : a.push(0)
+    }
 
-        for (var r = 0; r < rows; r++) {
-            var row = []
-            for (var c = 0; c < cols; c++) {
-                var i = r * cols + c
-                if (i < copy.length) {
-                    row.push(copy[i])
-                }
+    return a
+}
+
+function reShape(array, rows, cols) {
+    // convert 1d array to 2d
+
+    var copy = array.slice(0) // Copy all elements.
+    array.length = 0 // Clear out existing array.
+
+    // go through each (x, y) pair
+    for (var x = 0; x < rows; x++) {
+        var row = []
+        // build array of length rows (image width)
+        for (var y = 0; y < cols; y++) {
+            var n = x * cols + y
+            if (n < copy.length) {
+                row.push(copy[n])
             }
-            array.push(row)
         }
-        return this.transpose(array)
+        // push that row to the 2d array
+        array.push(row)
     }
+    // return rotated 2d array
+    console.table(transpose(array))
 
-    transpose(matrix) {
-        return matrix.reduce(
-            (prev, next) =>
-                next.map((item, i) => (prev[i] || []).concat(next[i])),
-            []
-        )
-    }
+    return transpose(array)
+}
 
-    drawArray(ctx, array, scale = 1, colors = { fg: "white", bg: "black" }) {
-        for (let x = 0; x < array.length; x++) {
-            for (let y = 0; y < array[0].length; y++) {
-                if (array[x][y] == 1) {
-                    ctx.fillStyle = colors.fg
-                    ctx.fillRect(x * scale, y * scale, scale, scale)
-                }
-                if (array[x][y] == 0) {
-                    ctx.fillStyle = colors.bg
-                    ctx.fillRect(x * scale, y * scale, scale, scale)
-                }
+function transpose(matrix) {
+    // rotate 2d array 90 degrees to the right
+    return matrix.reduce(
+        (prev, next) => next.map((item, i) => (prev[i] || []).concat(next[i])),
+        []
+    )
+}
+
+function drawArray(
+    ctx,
+    array,
+    scale = 1,
+    colors = { fg: "white", bg: "black" }
+) {
+    // loop through each indice
+    for (let x = 0; x < array.length; x++) {
+        for (let y = 0; y < array[0].length; y++) {
+            if (array[x][y] == 1) {
+                // '1' == black
+                ctx.fillStyle = colors.fg
+
+                // you could add a different width or height arguments for each square
+                // it would be interesting but sort of pointless, so we do it this way
+
+                // here we need (x * scale) cause that will give us the coordinate to draw on the canvas
+                ctx.fillRect(x * scale, y * scale, scale, scale)
+            }
+            if (array[x][y] == 0) {
+                // '0' == white
+                ctx.fillStyle = colors.bg
+
+                // you could add a different width or height arguments for each square
+                // it would be interesting but sort of pointless, so we do it this way
+
+                // here we need (x * scale), etc. cause that will give us the coordinate to draw on the canvas
+                ctx.fillRect(x * scale, y * scale, scale, scale)
             }
         }
-    }
-
-    sortPixels(array) {
-        let out = []
-        // read image data into new array
-        for (let i = 0; i < array.length; i++) {
-            if (array[i] == 255) {
-                out.push(255)
-            } else if (array[i] == 0) {
-                out.push(0)
-            } else {
-                console.error("⚠️ Please provide a black and white image")
-                break
-            }
-        }
-        return out
-    }
-
-    setPixels(array) {
-        let oa = []
-        // for each pixel, check if its black or white, put into new array
-        for (let n = 0; n < array.length; n += 4) {
-            array[n] == 255 ? oa.push(1) : oa.push(0)
-        }
-        return oa
     }
 }
