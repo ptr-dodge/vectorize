@@ -35,4 +35,4 @@ vec.draw(2)
 <img src="demo/test_map.png" width="100">
 
 ## Output
-<img src="demo/output.png">
+<img src="demo/output.png" width="200">
