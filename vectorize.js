@@ -1,42 +1,45 @@
-export default function Vectorize(url, options = { draw: false, scale: 1 }) {
-    let img = new Image()
-    img.src = url
+let map = []
 
-    let imageArray = []
-    let imgData
-    let sorted
-    let colorMap
+export class Vectorize {
+    constructor(url) {
+        let img = new Image()
 
-    img.addEventListener("load", () => {
-        let canvas = document.createElement("canvas")
-        let ctx = canvas.getContext("2d")
+        img.src = url
+        img.onload = () => {
+            let imgData
+            let sorted
+            let colorMap
+            let canvas = document.createElement("canvas")
+            let ctx = canvas.getContext("2d")
 
-        canvas.height = img.height
-        canvas.width = img.width
+            canvas.height = img.height
+            canvas.width = img.width
 
-        ctx.drawImage(img, 0, 0)
+            ctx.drawImage(img, 0, 0)
 
-        imgData = getImageData(ctx, img)
-        sorted = sortPixels(imgData)
-        colorMap = setPixels(sorted)
-        imageArray = reShape(colorMap, img.height, img.width)
-
-        if (options.draw) {
-            let zcanv = document.createElement("canvas")
-            let ztx = zcanv.getContext("2d")
-            zcanv.height = imageArray[0].length * options.scale
-            zcanv.width = imageArray.length * options.scale
-
-            document.body.appendChild(zcanv)
-
-            drawArray(ztx, imageArray, options.scale)
+            imgData = ctx.getImageData(0, 0, img.width, img.height).data
+            sorted = sortPixels(imgData)
+            colorMap = setPixels(sorted)
+            map = reShape(colorMap, img.height, img.width)
+            localStorage.setItem("image", JSON.stringify(map))
         }
-    })
-    return imageArray
+
+        this.map = map = JSON.parse(localStorage.getItem("image"))
+
+        return map
+    }
 }
 
-function getImageData(ctx, img) {
-    return ctx.getImageData(0, 0, img.width, img.height).data
+Array.prototype.draw2d = (scale = 1) => {
+    let zcanv = document.createElement("canvas")
+    let ztx = zcanv.getContext("2d")
+
+    document.body.appendChild(zcanv)
+
+    zcanv.height = map[0].length * scale
+    zcanv.width = map.length * scale
+
+    drawArray(ztx, map, scale)
 }
 
 function sortPixels(array) {
@@ -93,8 +96,6 @@ function reShape(array, rows, cols) {
         array.push(row)
     }
     // return rotated 2d array
-    console.table(transpose(array))
-
     return transpose(array)
 }
 
@@ -106,7 +107,7 @@ function transpose(matrix) {
     )
 }
 
-function drawArray(
+export function drawArray(
     ctx,
     array,
     scale = 1,
